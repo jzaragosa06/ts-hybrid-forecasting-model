@@ -25,6 +25,7 @@ from sklearn.svm import SVR
 from sklearn.svm import SVR
 
 from xgboost import XGBRegressor
+# we will just use relative import. 
 from utility.date_functions import *
 
 
@@ -127,8 +128,9 @@ def evaluate_xgboost_and_random_forest(df_arg, exog, lag_value):
     #     "rmse": rmse,
     # }
 
+    
 
-df = pd.read_csv(".datasets/candy_production.csv", index_col=0, parse_dates=True)
+df = pd.read_csv("datasets/candy_production.csv", index_col=0, parse_dates=True)
 
 freq = infer_frequency(df)
 print(f"infer freq: {freq}")

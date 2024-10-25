@@ -47,6 +47,7 @@ def forecast_and_evaluate_lasso(df_arg, exog, lag_value):
         forecaster=forecaster,
         series=df,  # The column of time series data
         param_distributions=param_grid,
+        lags_grid=[3, 5, 7, 12, 14],
         steps=10,  
         exog=exog,
         n_iter=10,  
@@ -58,12 +59,12 @@ def forecast_and_evaluate_lasso(df_arg, exog, lag_value):
     )
     
     best_params = results_random_search.iloc[0]['params']
-
+    best_lag =  int(max(list(results_random_search.iloc[0]["lags"])))
     # Recreate the forecaster with the best parameters
     forecaster = ForecasterAutoregMultiVariate(
         regressor=Lasso(**best_params, random_state=123),
         level=df.columns[-1], 
-        lags=lag_value,
+        lags=best_lag,
         steps=10, 
         transformer_series=StandardScaler(),
         transformer_exog=StandardScaler(),

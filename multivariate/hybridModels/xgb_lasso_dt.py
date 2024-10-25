@@ -5,17 +5,19 @@ from sklearn.metrics import (
     mean_absolute_percentage_error,
     mean_squared_error,
 )
-from sklearn.linear_model import Ridge
+
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import StackingRegressor, RandomForestRegressor
 from xgboost import XGBRegressor
+from sklearn.linear_model import Ridge, Lasso, ElasticNet
+from sklearn.tree import DecisionTreeRegressor
 from skforecast.ForecasterAutoreg import ForecasterAutoreg
 from skforecast.model_selection import random_search_forecaster, backtesting_forecaster
 from skforecast.ForecasterAutoregMultiVariate import ForecasterAutoregMultiVariate
 from skforecast.model_selection_multiseries import backtesting_forecaster_multivariate
 from skforecast.model_selection_multiseries import random_search_forecaster_multivariate
 
-def evaluate_xgboost_and_random_forest_ridge(df_arg, exog, lag_value):
+def evaluate_xgb_and_lasso_dt(df_arg, exog, lag_value):
     """
     Perform time series forecasting using a StackingRegressor with RandomForest and XGBoost and Ridge.
     Optimize hyperparameters using random search and evaluate the model using backtesting.
@@ -38,9 +40,10 @@ def evaluate_xgboost_and_random_forest_ridge(df_arg, exog, lag_value):
 
     # Define the stacking regressor: RandomForest as base and XGBoost as final estimator
     base_estimators = [
-        ("rf", RandomForestRegressor(random_state=123)),
-        ("ridge", Ridge(random_state=123)),
+        ("lasso", Lasso(random_state=123)),
+        ("dt", DecisionTreeRegressor(random_state=123)),
     ]
+    
     meta_estimator = XGBRegressor(random_state=123, objective="reg:squarederror")
     stacking_regressor = StackingRegressor(
         estimators=base_estimators, final_estimator=meta_estimator
@@ -59,11 +62,12 @@ def evaluate_xgboost_and_random_forest_ridge(df_arg, exog, lag_value):
 
     # Define hyperparameter grid for random search
     param_grid = {
-        "ridge__alpha": [0.01, 0.1, 1, 10, 100],
-        "ridge__fit_intercept": [True, False],
-        "ridge__solver": ["auto", "svd", "cholesky", "lsqr", "saga"],
-        "rf__n_estimators": [50, 100, 200],
-        "rf__max_depth": [3, 5, None],
+        "lasso__alpha": [0.001, 0.01, 0.1, 1, 10, 100], 
+        "lasso__max_iter": [500, 1000, 1500], 
+        "dt__max_depth": [3, 5, 10, None],
+        "dt__min_samples_split": [2, 5, 10], 
+        "dt__min_samples_leaf":[1, 2, 4], 
+        "dt__max_features":[None, 'sqrt', 'log2'],
         "final_estimator__n_estimators": [100, 200, 500],
         "final_estimator__max_depth": [3, 5, 10],
         "final_estimator__learning_rate": [0.01, 0.1, 0.2],
@@ -88,28 +92,20 @@ def evaluate_xgboost_and_random_forest_ridge(df_arg, exog, lag_value):
         random_state=123
     )
 
-    # Extract best hyperparameters
+    # Extract best parameters
     best_params = search_results.iloc[0]["params"]
+    lasso_params = {k.replace("lasso__", ""): v for k, v in best_params.items() if "lasso__" in k}
+    dt_params = {k.replace("dt__", ""): v for k, v in best_params.items() if "dt__" in k}
+    xgb_params = {k.replace("final_estimator__", ""): v for k, v in best_params.items() if "final_estimator__" in k}
+    
     best_lag =  int(max(list(search_results.iloc[0]["lags"])))
-    # Separate RandomForest and XGBoost parameters
-    rf_params = {
-        k.replace("rf__", ""): v for k, v in best_params.items() if "rf__" in k
-    }
-    xgb_params = {
-        k.replace("final_estimator__", ""): v
-        for k, v in best_params.items()
-        if "final_estimator__" in k
-    }
-    ridge_params = {
-        k.replace("ridge__", ""): v for k, v in best_params.items() if "ridge__" in k
-    }
 
-    # Recreate the best StackingRegressor using optimized hyperparameters
-    rf_best = RandomForestRegressor(**rf_params)
-    ridge_best = Ridge(**ridge_params)
+    # Recreate optimized StackingRegressor
+    lasso_best = Lasso(**lasso_params)
+    dt_best = DecisionTreeRegressor(**dt_params, random_state=123)
     xgb_best = XGBRegressor(**xgb_params, random_state=123)
     stacking_regressor_best = StackingRegressor(
-        estimators=[("rf", rf_best), ("ridge", ridge_best)], final_estimator=xgb_best
+        estimators=[("lasso", lasso_best),  ("dt", dt_best)], final_estimator=xgb_best
     )
 
     # Recreate the ForecasterAutoreg with the best model
@@ -121,6 +117,7 @@ def evaluate_xgboost_and_random_forest_ridge(df_arg, exog, lag_value):
         transformer_series=StandardScaler(),
         transformer_exog=StandardScaler(),
     )
+    
 
     # Backtest the model to evaluate its performance
     backtest_metric, predictions = backtesting_forecaster_multivariate(

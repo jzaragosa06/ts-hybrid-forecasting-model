@@ -43,6 +43,7 @@ def forecast_and_evaluate_ridge(df_arg, exog, lag_value):
         forecaster=forecaster,
         y=df.iloc[:, 0],  # The column of time series data
         param_distributions=param_grid,
+        lags_grid=[3, 5, 7, 12, 14], 
         steps=10,  
         exog=exog,
         n_iter=10,  
@@ -54,11 +55,11 @@ def forecast_and_evaluate_ridge(df_arg, exog, lag_value):
     )
     
     best_params = results_random_search.iloc[0]['params']
-
+    best_lag =  int(max(list(results_random_search.iloc[0]["lags"])))
     # Recreate the forecaster with the best parameters
     forecaster = ForecasterAutoreg(
         regressor=Ridge(**best_params),
-        lags=lag_value 
+        lags=best_lag 
     )
 
     # Backtest the model

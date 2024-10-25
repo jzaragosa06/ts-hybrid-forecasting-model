@@ -34,7 +34,7 @@ def forecast_and_evaluate_lasso(df_arg, exog, lag_value):
     # Define parameter grid to search for Lasso regressor
     param_grid = {
         'alpha': [0.001, 0.01, 0.1, 1, 10, 100],  # Regularization strength
-        'max_iter': [1000, 5000, 10000]           # Number of iterations for optimization
+        'max_iter': [500, 1000, 1500], # Number of iterations for optimization
     }
 
     # Perform random search to find the best hyperparameters
@@ -42,6 +42,7 @@ def forecast_and_evaluate_lasso(df_arg, exog, lag_value):
         forecaster=forecaster,
         y=df.iloc[:, 0],  # The column of time series data
         param_distributions=param_grid,
+        lags_grid=[3, 5, 7, 12, 14], 
         steps=10,  
         exog=exog,
         n_iter=10,  
@@ -53,11 +54,11 @@ def forecast_and_evaluate_lasso(df_arg, exog, lag_value):
     )
     
     best_params = results_random_search.iloc[0]['params']
-
+    best_lag =  int(max(list(results_random_search.iloc[0]["lags"])))
     # Recreate the forecaster with the best parameters
     forecaster = ForecasterAutoreg(
         regressor=Lasso(**best_params, random_state=123),
-        lags=lag_value 
+        lags=best_lag 
     )
 
     # Backtest the model

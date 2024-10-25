@@ -4,18 +4,21 @@ import numpy as np
 import csv
 import shutil
 from utility.date_functions import infer_frequency, create_time_features
-from hybridModels.xgb_rf import evaluate_xgboost_and_random_forest
 from models.xgboost import forecast_and_evaluate_xgboost
 from models.random_forest import forecast_and_evaluate_random_forest
 from models.ridge import forecast_and_evaluate_ridge
+from models.lasso import forecast_and_evaluate_lasso
+from models.elastic_net_regression import forecast_and_evaluate_elastic_net
+from models.decision_tree import forecast_and_evaluate_decision_tree
 from hybridModels.xgb_rf_ridge import evaluate_xgboost_and_random_forest_ridge
+from hybridModels.ridge_lasso_enr_dt import evaluate_ridge_and_lasso_enr_dt
 
 
 # This creates the folder where we can store the evaluation results.
 #  It rewrites the previous execution's results.
 #we don't need to add the univariate folder since it is already taken into account by the os
 base_directory = os.path.dirname(__file__)
-eval_directory = os.path.join(base_directory, 'evaluations', 'xgb_rf_ridge')
+eval_directory = os.path.join(base_directory, 'evaluations', 'ridge_lasso_enr_dt')
 
 if os.path.exists(eval_directory):
     shutil.rmtree(eval_directory)
@@ -25,10 +28,10 @@ os.makedirs(eval_directory)
 print("Folder created")
 
 csv_files = [
-    ("mae.csv", ["fname", "xgb", "rf", "ridge", "xgb_rf_ridge"]),
-    ("mape.csv", ["fname", "xgb", "rf", "ridge", "xgb_rf_ridge"]),
-    ("mse.csv", ["fname", "xgb", "rf", "ridge", "xgb_rf_ridge"]),
-    ("rmse.csv", ["fname", "xgb", "rf", "ridge", "xgb_rf_ridge"]),
+    ("mae.csv", ["fname", "ridge", "lasso", "enr", "dt", "ridge_lasso_enr_dt"]),
+    ("mape.csv", ["fname", "ridge", "lasso", "enr", "dt", "ridge_lasso_enr_dt"]),
+    ("mse.csv", ["fname", "ridge", "lasso", "enr","dt", "ridge_lasso_enr_dt"]),
+    ("rmse.csv", ["fname", "ridge", "lasso", "enr","dt", "ridge_lasso_enr_dt"]),
 ]
 
 for filename, header in csv_files:
@@ -64,67 +67,70 @@ for filename in os.listdir(data_directory):
     print(f"freq on {filename}: {freq}")
     print(f"exog on {filename} : {exog}")
     # --------------------------------------------------------
-    results_rf = forecast_and_evaluate_random_forest(
-        df_arg=df, exog=exog, lag_value=lags
-    )
-    results_xgb = forecast_and_evaluate_xgboost(df_arg=df, exog=exog, lag_value=lags)
+    results_lasso = forecast_and_evaluate_lasso(df_arg=df, exog=exog, lag_value=lags)
+    results_enr = forecast_and_evaluate_elastic_net(df_arg=df, exog=exog, lag_value=lags)
+    results_dt = forecast_and_evaluate_decision_tree(df_arg=df, exog=exog, lag_value=lags)
     results_ridge = forecast_and_evaluate_ridge(df_arg=df, exog=exog, lag_value=lags)
-    hybrid = evaluate_xgboost_and_random_forest_ridge(
+    hybrid = evaluate_ridge_and_lasso_enr_dt(
         df_arg=df, exog=exog, lag_value=lags
     )
 
-    csv_mae = os.path.join(base_directory, 'evaluations', 'xgb_rf_ridge', 'mae.csv')
-    csv_mape = os.path.join(base_directory, 'evaluations', 'xgb_rf_ridge', 'mape.csv')
-    csv_mse = os.path.join(base_directory, 'evaluations', 'xgb_rf_ridge', 'mse.csv')
-    csv_rmse = os.path.join(base_directory, 'evaluations', 'xgb_rf_ridge', 'rmse.csv')
+    csv_mae = os.path.join(base_directory, 'evaluations', 'ridge_lasso_enr_dt', 'mae.csv')
+    csv_mape = os.path.join(base_directory, 'evaluations', 'ridge_lasso_enr_dt', 'mape.csv')
+    csv_mse = os.path.join(base_directory, 'evaluations', 'ridge_lasso_enr_dt', 'mse.csv')
+    csv_rmse = os.path.join(base_directory, 'evaluations', 'ridge_lasso_enr_dt', 'rmse.csv')
 
     new_row_mae = pd.DataFrame(
         [
             [
                 filename,
-                results_xgb["mae"],
-                results_rf["mae"],
                 results_ridge["mae"],
+                results_lasso["mae"],
+                results_enr["mae"],
+                results_dt["mae"],
                 hybrid["mae"],
             ]
         ],
-        columns=["fname", "xgb", "rf", "ridge", "xgb_rf_ridge"],
+        columns=["fname", "ridge", "lasso", "enr", "dt", "ridge_lasso_enr_dt"],
     )
     new_row_mape = pd.DataFrame(
         [
             [
                 filename,
-                results_xgb["mape"],
-                results_rf["mape"],
                 results_ridge["mape"],
+                results_lasso["mape"],
+                results_enr["mape"],
+                results_dt["mape"],
                 hybrid["mape"],
             ]
         ],
-        columns=["fname", "xgb", "rf", "ridge", "xgb_rf_ridge"],
+        columns=["fname", "ridge", "lasso", "enr", "dt", "ridge_lasso_enr_dt"],
     )
     new_row_mse = pd.DataFrame(
         [
             [
                 filename,
-                results_xgb["mse"],
-                results_rf["mse"],
                 results_ridge["mse"],
+                results_lasso["mse"],
+                results_enr["mse"],
+                results_dt["mse"],
                 hybrid["mse"],
             ]
         ],
-        columns=["fname", "xgb", "rf", "ridge", "xgb_rf_ridge"],
+        columns=["fname", "ridge", "lasso", "enr", "dt", "ridge_lasso_enr_dt"],
     )
     new_row_rmse = pd.DataFrame(
         [
             [
                 filename,
-                results_xgb["rmse"],
-                results_rf["rmse"],
                 results_ridge["rmse"],
+                results_lasso["rmse"],
+                results_enr["rmse"],
+                results_dt["rmse"],
                 hybrid["rmse"],
             ]
         ],
-        columns=["fname", "xgb", "rf", "ridge", "xgb_rf_ridge"],
+        columns=["fname", "ridge", "lasso", "enr", "dt", "ridge_lasso_enr_dt"],
     )
 
     new_row_mae.to_csv(

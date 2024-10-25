@@ -72,6 +72,7 @@ def evaluate_xgboost_and_random_forest_ridge(df_arg, exog, lag_value):
         forecaster=forecaster,
         y=df.iloc[:, 0],  # Time series data
         param_distributions=param_grid,
+        lags_grid=[3, 5, 7, 12, 14], 
         steps=10,
         exog=exog,
         n_iter=10,
@@ -84,7 +85,7 @@ def evaluate_xgboost_and_random_forest_ridge(df_arg, exog, lag_value):
 
     # Extract best hyperparameters
     best_params = search_results.iloc[0]["params"]
-
+    best_lag =  int(max(list(search_results.iloc[0]["lags"])))
     # Separate RandomForest and XGBoost parameters
     rf_params = {
         k.replace("rf__", ""): v for k, v in best_params.items() if "rf__" in k
@@ -109,7 +110,7 @@ def evaluate_xgboost_and_random_forest_ridge(df_arg, exog, lag_value):
     # Recreate the ForecasterAutoreg with the best model
     forecaster = ForecasterAutoreg(
         regressor=stacking_regressor_best,
-        lags=lag_value,
+        lags=best_lag,
         transformer_y=StandardScaler(),
         transformer_exog=StandardScaler(),
     )

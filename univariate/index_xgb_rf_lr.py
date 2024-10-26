@@ -20,123 +20,126 @@ from models.linear_regression import forecast_and_evaluate_linear_regression
 base_directory = os.path.dirname(__file__)
 eval_directory = os.path.join(base_directory, 'evaluations', 'xgb_rf_lr')
 
-if os.path.exists(eval_directory):
-    shutil.rmtree(eval_directory)
-    print("folder deleted")
+# if os.path.exists(eval_directory):
+#     shutil.rmtree(eval_directory)
+#     print("folder deleted")
 
-os.makedirs(eval_directory)
-print("Folder created")
+# os.makedirs(eval_directory)
+# print("Folder created")
 
-csv_files = [
-    ("mae.csv", ["fname", "xgb", "rf", "lr", "xgb_rf_lr"]),
-    ("mape.csv", ["fname", "xgb","rf", "lr", "xgb_rf_lr"]),
-    ("mse.csv", ["fname", "xgb", "rf", "lr","xgb_rf_lr"]),
-    ("rmse.csv", ["fname", "xgb", "rf", "lr", "xgb_rf_lr"]),
-]
+# csv_files = [
+#     ("mae.csv", ["fname", "xgb", "rf", "lr", "xgb_rf_lr"]),
+#     ("mape.csv", ["fname", "xgb","rf", "lr", "xgb_rf_lr"]),
+#     ("mse.csv", ["fname", "xgb", "rf", "lr","xgb_rf_lr"]),
+#     ("rmse.csv", ["fname", "xgb", "rf", "lr", "xgb_rf_lr"]),
+# ]
 
-for filename, header in csv_files:
-    filepath = os.path.join(eval_directory, filename)
-    with open(filepath, mode="w", newline="") as file:
-        writer = csv.writer(file)
-        writer.writerow(header)
-        print(f"{filename} created")
+# for filename, header in csv_files:
+#     filepath = os.path.join(eval_directory, filename)
+#     with open(filepath, mode="w", newline="") as file:
+#         writer = csv.writer(file)
+#         writer.writerow(header)
+#         print(f"{filename} created")
 
 
 data_directory = os.path.join(base_directory, 'datasets')
+df_finished_files = pd.read_csv("/workspaces/ts-hybrid-forecasting-model/univariate/mae.csv")
+list_finished_files = df_finished_files["fname"].to_list()
 
 for filename in os.listdir(data_directory):
-    file_path = os.path.join(data_directory, filename)
-    df = pd.read_csv(file_path, index_col=0, parse_dates=True)
-    
-    # Find the first row that contain NaN, and remove the succeeding rows. 
+    if filename not in list_finished_files:
+        file_path = os.path.join(data_directory, filename)
+        df = pd.read_csv(file_path, index_col=0, parse_dates=True)
+        
+        # Find the first row that contain NaN, and remove the succeeding rows. 
 
-    # Step 1: Find the first occurrence of NaN in any column
-    first_nan_index = df[df.isna().any(axis=1)].index.min()
+        # Step 1: Find the first occurrence of NaN in any column
+        first_nan_index = df[df.isna().any(axis=1)].index.min()
 
-    # Step 2: Slice the DataFrame to remove all rows starting from the first NaN
-    if pd.notna(first_nan_index):
-        df = df.loc[:first_nan_index].iloc[:-1]  # Retain rows before the first NaN row
+        # Step 2: Slice the DataFrame to remove all rows starting from the first NaN
+        if pd.notna(first_nan_index):
+            df = df.loc[:first_nan_index].iloc[:-1]  # Retain rows before the first NaN row
 
-    
-    # --------------------------------------------------------
-    # freq = infer_frequency(df)
-    freq = "D"
-    exog = create_time_features(df=df, freq=freq)
-    lags = 7
-    
-    print(f"freq on {filename}: {freq}")
-    print(f"exog on {filename} : {exog}")
-    # --------------------------------------------------------
-    results_lr = forecast_and_evaluate_linear_regression(df_arg=df, exog=exog, lag_value=lags)
-    results_rf = forecast_and_evaluate_random_forest(df_arg=df, exog=exog, lag_value=lags)
-    results_xgb =forecast_and_evaluate_xgboost(df_arg=df, exog=exog, lag_value=lags)
-    hybrid = evaluate_xgboost_and_rf_lr(
-        df_arg=df, exog=exog, lag_value=lags
-    )
+        
+        # --------------------------------------------------------
+        # freq = infer_frequency(df)
+        freq = "D"
+        exog = create_time_features(df=df, freq=freq)
+        lags = 7
+        
+        print(f"freq on {filename}: {freq}")
+        print(f"exog on {filename} : {exog}")
+        # --------------------------------------------------------
+        results_lr = forecast_and_evaluate_linear_regression(df_arg=df, exog=exog, lag_value=lags)
+        results_rf = forecast_and_evaluate_random_forest(df_arg=df, exog=exog, lag_value=lags)
+        results_xgb =forecast_and_evaluate_xgboost(df_arg=df, exog=exog, lag_value=lags)
+        hybrid = evaluate_xgboost_and_rf_lr(
+            df_arg=df, exog=exog, lag_value=lags
+        )
 
-    csv_mae = os.path.join(base_directory, 'evaluations', 'xgb_rf_lr', 'mae.csv')
-    csv_mape = os.path.join(base_directory, 'evaluations', 'xgb_rf_lr', 'mape.csv')
-    csv_mse = os.path.join(base_directory, 'evaluations', 'xgb_rf_lr', 'mse.csv')
-    csv_rmse = os.path.join(base_directory, 'evaluations', 'xgb_rf_lr', 'rmse.csv')
+        csv_mae = os.path.join(base_directory, 'evaluations', 'xgb_rf_lr', 'mae.csv')
+        csv_mape = os.path.join(base_directory, 'evaluations', 'xgb_rf_lr', 'mape.csv')
+        csv_mse = os.path.join(base_directory, 'evaluations', 'xgb_rf_lr', 'mse.csv')
+        csv_rmse = os.path.join(base_directory, 'evaluations', 'xgb_rf_lr', 'rmse.csv')
 
-    new_row_mae = pd.DataFrame(
-        [
+        new_row_mae = pd.DataFrame(
             [
-                filename,
-                results_xgb["mae"],
-                results_rf["mae"],
-                results_lr["mae"],
-                hybrid["mae"],
-            ]
-        ],
-        columns=["fname", "xgb","rf", "lr", "xgb_rf_lr"],
-    )
-    new_row_mape = pd.DataFrame(
-        [
+                [
+                    filename,
+                    results_xgb["mae"],
+                    results_rf["mae"],
+                    results_lr["mae"],
+                    hybrid["mae"],
+                ]
+            ],
+            columns=["fname", "xgb","rf", "lr", "xgb_rf_lr"],
+        )
+        new_row_mape = pd.DataFrame(
             [
-                filename,
-                results_xgb["mape"],
-                results_rf["mape"],
-                results_lr["mape"],
-                hybrid["mape"],
-            ]
-        ],
-        columns=["fname", "xgb","rf", "lr", "xgb_rf_lr"],
-    )
-    new_row_mse = pd.DataFrame(
-        [
+                [
+                    filename,
+                    results_xgb["mape"],
+                    results_rf["mape"],
+                    results_lr["mape"],
+                    hybrid["mape"],
+                ]
+            ],
+            columns=["fname", "xgb","rf", "lr", "xgb_rf_lr"],
+        )
+        new_row_mse = pd.DataFrame(
             [
-                filename,
-                results_xgb["mse"],
-                results_rf["mse"],
-                results_lr["mse"],
-                hybrid["mse"],
-            ]
-        ],
-        columns=["fname", "xgb","rf", "lr", "xgb_rf_lr"],
-    )
-    new_row_rmse = pd.DataFrame(
-        [
+                [
+                    filename,
+                    results_xgb["mse"],
+                    results_rf["mse"],
+                    results_lr["mse"],
+                    hybrid["mse"],
+                ]
+            ],
+            columns=["fname", "xgb","rf", "lr", "xgb_rf_lr"],
+        )
+        new_row_rmse = pd.DataFrame(
             [
-                filename,
-                results_xgb["rmse"],
-                results_rf["rmse"],
-                results_lr["rmse"],
-                hybrid["rmse"],
-            ]
-        ],
-        columns=["fname", "xgb","rf", "lr", "xgb_rf_lr"],
-    )
+                [
+                    filename,
+                    results_xgb["rmse"],
+                    results_rf["rmse"],
+                    results_lr["rmse"],
+                    hybrid["rmse"],
+                ]
+            ],
+            columns=["fname", "xgb","rf", "lr", "xgb_rf_lr"],
+        )
 
-    new_row_mae.to_csv(
-        csv_mae, mode="a", header=False, index=False, lineterminator="\n"
-    )
-    new_row_mape.to_csv(
-        csv_mape, mode="a", header=False, index=False, lineterminator="\n"
-    )
-    new_row_mse.to_csv(
-        csv_mse, mode="a", header=False, index=False, lineterminator="\n"
-    )
-    new_row_rmse.to_csv(
-        csv_rmse, mode="a", header=False, index=False, lineterminator="\n"
-    )
+        new_row_mae.to_csv(
+            csv_mae, mode="a", header=False, index=False, lineterminator="\n"
+        )
+        new_row_mape.to_csv(
+            csv_mape, mode="a", header=False, index=False, lineterminator="\n"
+        )
+        new_row_mse.to_csv(
+            csv_mse, mode="a", header=False, index=False, lineterminator="\n"
+        )
+        new_row_rmse.to_csv(
+            csv_rmse, mode="a", header=False, index=False, lineterminator="\n"
+        )
